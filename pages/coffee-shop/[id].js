@@ -5,21 +5,24 @@ import Image from "next/image";
 
 import cls from 'classnames';
 
-import coffeShopsData from '../../data/coffee-stores.json';
 import styles from '../../styles/coffee-shop.module.css';
+import { fetchCoffeeStores } from "@/lib/coffee-stores";
 
-export function getStaticProps({ params }) {
+export async function getStaticProps({ params }) {
+    const coffeeShops = await fetchCoffeeStores();
+
     return {
         props: {
-            coffeeStore: coffeShopsData.find(coffeeStore => coffeeStore.id.toString() === params.id)
+            coffeeStore: coffeeShops.find(coffeeStore => coffeeStore.fsq_id.toString() === params.id)
         }
     }
 }
 
-export function getStaticPaths() {
-    const paths = coffeShopsData.map(coffeeStore => {
+export async function getStaticPaths() {
+    const coffeeShops = await fetchCoffeeStores();
+    const paths = coffeeShops.map(coffeeStore => {
         return {
-            params: { id: coffeeStore.id.toString() }
+            params: { id: coffeeStore.fsq_id.toString() }
         }
     });
     return {
@@ -28,8 +31,13 @@ export function getStaticPaths() {
     }
 }
 
-const CoffeeShop = ({ coffeeStore: { address, name, neighbourhood, imgUrl } }) => {
+const CoffeeShop = ({ coffeeStore }) => {
     const router = useRouter();
+
+    const { address, neighborhood } = coffeeStore.location;
+    console.log(coffeeStore.location);
+    const { name } = coffeeStore.categories;
+    const imgUrl = '/static/hero-image.png';
 
     if (router.isFallback) {
         return (
@@ -52,7 +60,7 @@ const CoffeeShop = ({ coffeeStore: { address, name, neighbourhood, imgUrl } }) =
                     <div className={styles.nameWrapper}>
                         <p className={styles.name}>{name}</p>
                     </div>
-                    <Image src={imgUrl} width={600} height={360} className={styles.storeImg} alt={name} />
+                    <Image src={imgUrl || 'https://images.unsplash.com/photo-1504753793650-d4a2b783c15e?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80'} width={600} height={360} className={styles.storeImg} alt={name} />
                 </div>
                 <div className={cls('glass', styles.col2)}>
                     <div className={styles.iconWrapper}>
@@ -61,7 +69,7 @@ const CoffeeShop = ({ coffeeStore: { address, name, neighbourhood, imgUrl } }) =
                     </div>
                     <div className={styles.iconWrapper}>
                         <Image src='/static/icons/nearMe.svg' width={24} height={24} />
-                        <p className={styles.text}>{neighbourhood}</p>
+                        <p className={styles.text}>{neighborhood}</p>
                     </div>
                     <div className={styles.iconWrapper}>
                         <Image src='/static/icons/star.svg' width={24} height={24} />
