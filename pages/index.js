@@ -5,8 +5,10 @@ import styles from '@/styles/Home.module.css'
 import Banner from '@/components/banner'
 import Card from '@/components/card.component'
 
-import coffeeShopsData from './../data/coffee-stores.json'
 import { fetchCoffeeStores } from '@/lib/coffee-stores'
+import useTrackLocation from '@/hooks/use-track-location'
+import { useContext, useEffect, useState } from 'react'
+import { STORE_ACTION_TYPES, StoreContext } from '@/contexts/store-context'
 
 export async function getStaticProps() {
   const coffeeShops = await fetchCoffeeStores();
@@ -17,9 +19,33 @@ export async function getStaticProps() {
 }
 
 export default function Home(props) {
+  const { handleTrackLocation, locationErrorMessage, isFindingLocation } = useTrackLocation()
+
+  const [coffeShopsByLocationError, setCoffeShopsByLocationError] = useState(null);
+  const { dispatch, state } = useContext(StoreContext);
+  const { coffeeShops, latLong } = state;
+
+  useEffect(() => {
+    const fetchAsyncCoffeShops = async () => {
+      if (latLong) {
+        try {
+          const coffeeShopsByLocationResponse = await fetch(`/api/coffee-stores?latLong=${latLong}&limit=30`);
+          const coffeeShopsByLocation = await coffeeShopsByLocationResponse.json();
+          dispatch({
+            type: STORE_ACTION_TYPES.SET_COFFEE_STORES,
+            payload: coffeeShopsByLocation
+          })
+          setCoffeShopsByLocationError('');
+        } catch (error) {
+          setCoffeShopsByLocationError(error.message);
+        }
+      }
+    }
+    fetchAsyncCoffeShops();
+  }), [dispatch, latLong];
 
   const handleOnBannerBtnClick = () => {
-    console.log("yup");
+    handleTrackLocation();
   }
 
   return (
@@ -33,28 +59,58 @@ export default function Home(props) {
       <main className={styles.main}>
         <h1>Coffee Shop Search</h1>
         <Banner
-          buttonText="Find Nearby"
+          buttonText={isFindingLocation ? "Locating..." : "Find Nearby"}
           handleOnClick={handleOnBannerBtnClick}
         />
+        {
+          locationErrorMessage && <p>Something went wrong {locationErrorMessage}</p>
+        }
+        {
+          coffeShopsByLocationError && <p>Something went wrong {coffeShopsByLocationError}</p>
+        }
         <div className={styles.heroImage}>
-          <Image src="/static/hero-image.png" width={500} height={500} />
+          <Image src="/static/hero-image.png" width={500} height={500} alt="abstract coffee cup hero image" />
         </div>
-        <h2 className={styles.heading2}>Sunnyvale Shops</h2>
-        <div className={styles.cardLayout}>
-          {
-            props.coffeeShops.map((shop) => {
-              return (
-                <Card
-                  key={shop.fsq_id}
-                  className={styles.card}
-                  name={shop.name}
-                  href={`/coffee-shop/${shop.fsq_id}`}
-                  imgUrl={shop.imgUrl || 'https://images.unsplash.com/photo-1504753793650-d4a2b783c15e?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80'}
-                />
-              )
-            })
-          }
-        </div>
+        {coffeeShops.length > 0 && (
+          <div className={styles.sectionWrapper}>
+            <h2 className={styles.heading2}>Cafes Close By</h2>
+            <div className={styles.cardLayout}>
+              {
+                coffeeShops.map((shop) => {
+                  return (
+                    <Card
+                      key={shop.id}
+                      className={styles.card}
+                      name={shop.name}
+                      href={`/coffee-shop/${shop.id}`}
+                      imgUrl={shop.imgUrl || 'https://images.unsplash.com/photo-1504753793650-d4a2b783c15e?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80'}
+                    />
+                  )
+                })
+              }
+            </div>
+          </div>
+        )}
+        {props.coffeeShops.length > 0 && (
+          <div className={styles.sectionWrapper}>
+            <h2 className={styles.heading2}>Sunnyvale Shops</h2>
+            <div className={styles.cardLayout}>
+              {
+                props.coffeeShops.map((shop) => {
+                  return (
+                    <Card
+                      key={shop.id}
+                      className={styles.card}
+                      name={shop.name}
+                      href={`/coffee-shop/${shop.id}`}
+                      imgUrl={shop.imgUrl || 'https://images.unsplash.com/photo-1504753793650-d4a2b783c15e?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80'}
+                    />
+                  )
+                })
+              }
+            </div>
+          </div>
+        )}
       </main>
     </>
   )
